@@ -103,7 +103,7 @@ func (fe *FileEntry) FillContent() error {
 		case true:
 			// need to go deeper and process inner directory
 			dir := &FileEntry{Type: Directory, Parent: fe.Name, Name: fullPath, Content: make(map[string]*FileEntry)}
-			fe.Content[f.Name()] = dir
+			fe.Content[fullPath] = dir
 			err = dir.FillContent()
 			if err != nil {
 				return err
@@ -111,7 +111,7 @@ func (fe *FileEntry) FillContent() error {
 			fe.Size += dir.Size
 		case false:
 			size := ByteSize(float64(f.Size()))
-			fe.Content[f.Name()] = &FileEntry{Type: File, Parent: fe.Name, Name: fullPath, Size: size}
+			fe.Content[fullPath] = &FileEntry{Type: File, Parent: fe.Name, Name: fullPath, Size: size}
 			fe.Size += size
 		}
 	}
