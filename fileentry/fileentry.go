@@ -61,7 +61,7 @@ const (
 
 type FileEntry struct {
 	Type    FileType
-	Parent  string
+	Parent  *FileEntry
 	Name    string
 	Content map[string]*FileEntry
 	Size    ByteSize
@@ -84,7 +84,7 @@ func NewFileEntry(root string) (*FileEntry, error) {
 			return &FileEntry{}, err
 		}
 	}
-	fe := &FileEntry{Type: Directory, Parent: "", Name: fullPath, Content: make(map[string]*FileEntry)}
+	fe := &FileEntry{Type: Directory, Parent: &FileEntry{}, Name: fullPath, Content: make(map[string]*FileEntry)}
 	return fe, nil
 }
 
@@ -101,7 +101,7 @@ func (fe *FileEntry) FillContent() error {
 		switch f.IsDir() {
 		case true:
 			// need to go deeper and process inner directory
-			dir := &FileEntry{Type: Directory, Parent: fe.Name, Name: fullPath, Content: make(map[string]*FileEntry)}
+			dir := &FileEntry{Type: Directory, Parent: fe, Name: fullPath, Content: make(map[string]*FileEntry)}
 			fe.Content[fullPath] = dir
 			err = dir.FillContent()
 			if err != nil {
@@ -110,7 +110,7 @@ func (fe *FileEntry) FillContent() error {
 			fe.Size += dir.Size
 		case false:
 			size := ByteSize(float64(f.Size()))
-			fe.Content[fullPath] = &FileEntry{Type: File, Parent: fe.Name, Name: fullPath, Size: size}
+			fe.Content[fullPath] = &FileEntry{Type: File, Parent: fe, Name: fullPath, Size: size}
 			fe.Size += size
 		}
 	}
