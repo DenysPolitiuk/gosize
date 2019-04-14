@@ -33,6 +33,11 @@ func main() {
 			return
 		}
 	}
+	if rootName == "" {
+		fmt.Println("root directory is required")
+		printHelp()
+		return
+	}
 	mp, err := fileentry.NewFileEntry(rootName)
 	if err != nil {
 		fmt.Println(err)
