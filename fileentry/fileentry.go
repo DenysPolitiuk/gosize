@@ -75,16 +75,7 @@ func NewFileEntry(root string) (*FileEntry, error) {
 	if !fi.IsDir() {
 		return &FileEntry{}, &BasicError{fmt.Sprintf("%s: is not a directory", root)}
 	}
-	var fullPath string
-	if filepath.IsAbs(root) {
-		fullPath = root
-	} else {
-		fullPath, err = filepath.Abs(root)
-		if err != nil {
-			return &FileEntry{}, err
-		}
-	}
-	fe := &FileEntry{Type: Directory, Parent: &FileEntry{}, Name: fullPath, Content: make(map[string]*FileEntry)}
+	fe := &FileEntry{Type: Directory, Parent: &FileEntry{}, Name: root, Content: make(map[string]*FileEntry)}
 	return fe, nil
 }
 
