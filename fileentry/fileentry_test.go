@@ -2,6 +2,7 @@ package fileentry
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -9,9 +10,6 @@ import (
 	"testing"
 	"time"
 )
-import _ "io/ioutil"
-
-// TODO: use for going through folder inner files
 
 const (
 	minFolders     int    = 25
@@ -21,6 +19,7 @@ const (
 	minFileSizeItr int    = 1
 	maxFileSizeItr int    = 1000
 	fileContent    string = "0123456789"
+	testFolderName string = "test_target"
 )
 
 func testFolderSetup(dir string) ([]string, error) {
@@ -58,7 +57,7 @@ func testFolderSetup(dir string) ([]string, error) {
 
 func testFileSetup(dir string) (string, error) {
 	unixTime := time.Now().UnixNano()
-	fileName := strconv.FormatInt(unixTime, 10) //fmt.Sprintf("%v", unixTime)
+	fileName := strconv.FormatInt(unixTime, 10)
 	f, err := os.Create(filepath.Join(dir, fileName))
 	if err != nil {
 		return "", err
@@ -93,16 +92,14 @@ func getFolderSize(folder string) (int64, error) {
 
 var allFiles []string
 
-const testFolderName = "test_target"
-
 func init() {
 	rand.Seed(time.Now().UnixNano())
 	var err error
 	allFiles, err = testFolderSetup(testFolderName)
 	if err != nil {
 		// if error try to remove existing test_target and try again
-		os.RemoveAll("test_target")
-		allFiles, err = testFolderSetup("test_target")
+		os.RemoveAll(testFolderName)
+		allFiles, err = testFolderSetup(testFolderName)
 		if err != nil {
 			fmt.Println("Error in init\n", err)
 			os.Exit(1)
@@ -134,36 +131,43 @@ func TestNewFileEntry(t *testing.T) {
 func TestFillContent(t *testing.T) {
 	totalSize, err := getFolderSize(testFolderName)
 	if err != nil {
-		t.Error("Unable to getFolderSize", err)
+		t.Error("Unable to getFolderSize:", err)
 		return
 	}
 	fe, err := NewFileEntry(testFolderName)
 	if err != nil {
-		t.Error("Unable to NewFileEntry", err)
+		t.Error("Unable to NewFileEntry:", err)
 		return
 	}
 	err = fe.FillContent()
 	if err != nil {
-		t.Error("Error during FillContent", err)
+		t.Error("Error during FillContent:", err)
 		return
 	}
 	if float64(fe.Size) != float64(totalSize) {
 		t.Errorf("Total size for NewFileEntry is %v but it is %v for test result", float64(fe.Size), totalSize)
 	}
-	// for future tests
-	// files, err := ioutil.ReadDir(testFolderName)
-	// if err != nil {
-	// t.Error("Unable to ReadDir", err)
-	// return
-	// }
-	// for _, f := range files {
-	// if !f.IsDir() {
-	// continue
-	// }
-	// fSize, err := getFolderSize(f.Name())
-	// if err != nil {
-	// t.Error("Unable to getFolderSize", err)
-	// return
-	// }
-	// }
+	files, err := ioutil.ReadDir(testFolderName)
+	if err != nil {
+		t.Error("Unable to ReadDir:", err)
+		return
+	}
+	for _, f := range files {
+		if !f.IsDir() {
+			continue
+		}
+		fullName := filepath.Join(testFolderName, f.Name())
+		fSize, err := getFolderSize(fullName)
+		if err != nil {
+			t.Error("Unable to getFolderSize:", err)
+			continue
+		}
+		if f, ok := fe.Content[fullName]; !ok {
+			t.Errorf("Unable to find %v in FileEntry Content", fullName)
+		} else {
+			if float64(fSize) != float64(f.Size) {
+				t.Errorf("FieEntry Size for %v is %v instead of %v", fullName, f.Size, fSize)
+			}
+		}
+	}
 }
