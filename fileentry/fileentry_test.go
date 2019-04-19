@@ -162,7 +162,7 @@ func TestFillContent(t *testing.T) {
 			t.Error("Unable to getFolderSize:", err)
 			continue
 		}
-		if f, ok := fe.Content[fullName]; !ok {
+		if f, ok := fe.Content[f.Name()]; !ok {
 			t.Errorf("Unable to find %v in FileEntry Content", fullName)
 		} else {
 			if float64(fSize) != float64(f.Size) {
