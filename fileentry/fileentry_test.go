@@ -18,6 +18,8 @@ const (
 	maxFiles       int    = 20
 	minFileSizeItr int    = 1
 	maxFileSizeItr int    = 1000
+	minInnerFolder int    = 1
+	maxInnerFolder int    = 5
 	fileContent    string = "0123456789"
 	testFolderName string = "test_target"
 )
@@ -43,13 +45,30 @@ func testFolderSetup(dir string) ([]string, error) {
 			os.RemoveAll(dir)
 			return []string{}, err
 		}
-		for j := 0; j < randomNumber(minFiles, maxFiles); j++ {
+		for i := 0; i < randomNumber(minFiles, maxFiles); i++ {
 			aFile, err := testFileSetup(newFolder)
 			if err != nil {
 				os.RemoveAll(dir)
 				return []string{}, err
 			}
 			allFiles = append(allFiles, aFile)
+		}
+		for i := 0; i < randomNumber(minInnerFolder, maxInnerFolder); i++ {
+			innerFolderName := strconv.Itoa(int(time.Now().UnixNano()))
+			innerFolder := filepath.Join(newFolder, innerFolderName)
+			err := os.Mkdir(innerFolder, os.ModePerm)
+			if err != nil {
+				os.RemoveAll(dir)
+				return []string{}, err
+			}
+			for i := 0; i < randomNumber(minFiles, maxFiles); i++ {
+				aFile, err := testFileSetup(innerFolder)
+				if err != nil {
+					os.RemoveAll(dir)
+					return []string{}, err
+				}
+				allFiles = append(allFiles, aFile)
+			}
 		}
 	}
 	return allFiles, nil

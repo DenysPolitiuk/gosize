@@ -44,11 +44,24 @@ func (b ByteSize) String() string {
 }
 
 type BasicError struct {
-	Msg string
+	Msg           string
+	MethodName    string
+	InternalError error
+	Severity      ErrorSeverity
 }
 
+type ErrorSeverity string
+
+const (
+	Critical ErrorSeverity = "critical"
+	Normal   ErrorSeverity = "normal"
+)
+
 func (err *BasicError) Error() string {
-	return err.Msg
+	if err.InternalError != nil {
+		return fmt.Sprintf("%v at %v", err.InternalError, err.MethodName)
+	}
+	return fmt.Sprintf("%v at %v", err.Msg, err.MethodName)
 }
 
 type FileType string
@@ -71,10 +84,11 @@ type FileEntry struct {
 func NewFileEntry(root string) (*FileEntry, error) {
 	fi, err := os.Stat(root)
 	if err != nil {
-		return &FileEntry{}, err
+		return &FileEntry{}, &BasicError{InternalError: err, MethodName: "FileEntry.NewFileEntry os.Stat()", Severity: Critical}
 	}
 	if !fi.IsDir() {
-		return &FileEntry{}, &BasicError{fmt.Sprintf("%s: is not a directory", root)}
+		return &FileEntry{}, &BasicError{Msg: fmt.Sprintf("%s: is not a directory", root),
+			MethodName: "FileEntry.NewFileEntry IsDir()", InternalError: nil, Severity: Critical}
 	}
 	fe := &FileEntry{Type: Directory, Parent: &FileEntry{}, Name: root, FullPath: root, Content: make(map[string]*FileEntry)}
 	return fe, nil
@@ -82,14 +96,15 @@ func NewFileEntry(root string) (*FileEntry, error) {
 
 func (fe *FileEntry) FillContent() error {
 	if fe.Type != Directory {
-		return &BasicError{fmt.Sprintf("%s is %v and not %v", fe.Name, fe.Type, Directory)}
+		return &BasicError{Msg: fmt.Sprintf("%s is %v and not %v", fe.Name, fe.Type, Directory),
+			MethodName: "FileEntry.FillContent", InternalError: nil, Severity: Normal}
 	}
 	files, err := ioutil.ReadDir(fe.FullPath)
 	if err != nil {
-		return err
+		return &BasicError{InternalError: err, MethodName: "FileEntry.FillContent ioutil.ReadDir()", Severity: Normal}
 	}
 	for _, f := range files {
-		fullPath := filepath.Join(fe.Name, f.Name())
+		fullPath := filepath.Join(fe.FullPath, f.Name())
 		switch f.IsDir() {
 		case true:
 			// need to go deeper and process inner directory
@@ -97,9 +112,18 @@ func (fe *FileEntry) FillContent() error {
 			fe.Content[f.Name()] = dir
 			err = dir.FillContent()
 			if err != nil {
-				return err
+				if e, ok := err.(*BasicError); ok {
+					if e.Severity == Critical {
+						return e
+					} else {
+						fmt.Println(e)
+					}
+				} else {
+					return err
+				}
+			} else {
+				fe.Size += dir.Size
 			}
-			fe.Size += dir.Size
 		case false:
 			size := ByteSize(float64(f.Size()))
 			fe.Content[f.Name()] = &FileEntry{Type: File, Parent: fe, Name: f.Name(), FullPath: fullPath, Size: size}
@@ -107,4 +131,14 @@ func (fe *FileEntry) FillContent() error {
 		}
 	}
 	return nil
+}
+
+// TODO: Implement Searching for a FileEntries based on a given name
+func (fe *FileEntry) Search(name string) (result []*FileEntry, err error) {
+	return []*FileEntry{}, nil
+}
+
+// TODO: Implement a method to convert FileEntry.Content into a slice with all FileEntries from the Content
+func (fe *FileEntry) Flatten() ([]*FileEntry, error) {
+	return []*FileEntry{}, nil
 }
