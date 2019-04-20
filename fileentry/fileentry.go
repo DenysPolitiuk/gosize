@@ -162,7 +162,7 @@ func (fe *FileEntry) Search(name string, t FileType) ([]*FileEntry, error) {
 	return result, nil
 }
 
-func (fe *FileEntry) Flatten(t FileType) ([]*FileEntry, error) {
+func (fe *FileEntry) Flatten(t FileType, depth int) ([]*FileEntry, error) {
 	if fe.Type != Directory {
 		return []*FileEntry{}, &BasicError{Msg: fmt.Sprintf("%v is a %v instead of %v", fe.Name, fe.Type, Directory),
 			MethodName: "FileEntry.Flatten", Severity: Normal}
@@ -172,8 +172,14 @@ func (fe *FileEntry) Flatten(t FileType) ([]*FileEntry, error) {
 		if c.Type == t || t == Unknown {
 			result = append(result, c)
 		}
-		if c.Type == Directory {
-			innerResult, err := c.Flatten(t)
+		if c.Type == Directory && (depth > 1 || depth <= -1) {
+			var newDepth int
+			if depth <= -1 {
+				newDepth = depth
+			} else {
+				newDepth = depth - 1
+			}
+			innerResult, err := c.Flatten(t, newDepth)
 			if err != nil {
 				if e, ok := err.(*BasicError); ok {
 					if e.Severity != Critical {

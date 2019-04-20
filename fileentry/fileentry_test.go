@@ -289,7 +289,7 @@ func TestFlatten(t *testing.T) {
 		t.Error("Error during FillContent:", err)
 		return
 	}
-	flat, err := fe.Flatten(Unknown)
+	flat, err := fe.Flatten(Unknown, -1)
 	if err != nil {
 		t.Error("Error during Flatten Unknown:", err)
 	}
@@ -308,7 +308,7 @@ func TestFlatten(t *testing.T) {
 			t.Errorf("Not able to find %v in Flatten Unknown result", entry)
 		}
 	}
-	flat, err = fe.Flatten(File)
+	flat, err = fe.Flatten(File, -1)
 	if err != nil {
 		t.Error("Error during Flatten File:", err)
 	}
@@ -336,7 +336,7 @@ func TestFlatten(t *testing.T) {
 			t.Errorf("Able to find %v in Flatten File result even though it's a folder", entry)
 		}
 	}
-	flat, err = fe.Flatten(Directory)
+	flat, err = fe.Flatten(Directory, -1)
 	if err != nil {
 		t.Error("Error during Flatten Directory:", err)
 	}
@@ -362,6 +362,33 @@ func TestFlatten(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("Not able to find %v in Flatten Directory result", entry)
+		}
+	}
+	// basic depth test
+	files, err := ioutil.ReadDir(testFolderName)
+	if err != nil {
+		t.Error("Unable to ReadDir:", err)
+		return
+	}
+	inner, err := fe.Flatten(Unknown, 1)
+	if err != nil {
+		t.Error("Unable to fe.Flatten Unknown 1", err)
+		return
+	}
+	if len(inner) != len(files) {
+		t.Errorf("Number of entry at depth 1 from FileEntry.Flatten Unknown 1 is %v instead of %v", len(inner), len(files))
+		return
+	}
+	for _, i := range inner {
+		found := false
+		for _, f := range files {
+			if i.Name == f.Name() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("File Entry %v is not in list of entry at depth 1", i.Name)
 		}
 	}
 }
