@@ -133,9 +133,33 @@ func (fe *FileEntry) FillContent() error {
 	return nil
 }
 
-// TODO: Implement Searching for a FileEntries based on a given name
-func (fe *FileEntry) Search(name string) (result []*FileEntry, err error) {
-	return []*FileEntry{}, nil
+func (fe *FileEntry) Search(name string, t FileType) ([]*FileEntry, error) {
+	result := make([]*FileEntry, 0, 5)
+	if fe.Type == t || t == Unknown {
+		if fe.Name == name {
+			result = append(result, fe)
+		}
+	}
+	if fe.Type != Directory {
+		return result, nil
+	}
+	// continue to process content inside a directory
+	for _, c := range fe.Content {
+		r, err := c.Search(name, t)
+		if err != nil {
+			if e, ok := err.(*BasicError); ok {
+				if e.Severity != Critical {
+					fmt.Println(e)
+				} else {
+					return result, e
+				}
+			} else {
+				return result, err
+			}
+		}
+		result = append(result, r...)
+	}
+	return result, nil
 }
 
 // TODO: Implement a method to convert FileEntry.Content into a slice with all FileEntries from the Content
