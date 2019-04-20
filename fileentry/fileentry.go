@@ -162,7 +162,31 @@ func (fe *FileEntry) Search(name string, t FileType) ([]*FileEntry, error) {
 	return result, nil
 }
 
-// TODO: Implement a method to convert FileEntry.Content into a slice with all FileEntries from the Content
-func (fe *FileEntry) Flatten() ([]*FileEntry, error) {
-	return []*FileEntry{}, nil
+func (fe *FileEntry) Flatten(t FileType) ([]*FileEntry, error) {
+	if fe.Type != Directory {
+		return []*FileEntry{}, &BasicError{Msg: fmt.Sprintf("%v is a %v instead of %v", fe.Name, fe.Type, Directory),
+			MethodName: "FileEntry.Flatten", Severity: Normal}
+	}
+	result := make([]*FileEntry, 0, len(fe.Content))
+	for _, c := range fe.Content {
+		if c.Type == t || t == Unknown {
+			result = append(result, c)
+		}
+		if c.Type == Directory {
+			innerResult, err := c.Flatten(t)
+			if err != nil {
+				if e, ok := err.(*BasicError); ok {
+					if e.Severity != Critical {
+						fmt.Println(e)
+					} else {
+						return result, e
+					}
+				} else {
+					return result, err
+				}
+			}
+			result = append(result, innerResult...)
+		}
+	}
+	return result, nil
 }

@@ -277,3 +277,91 @@ func TestSearch(t *testing.T) {
 		}
 	}
 }
+
+func TestFlatten(t *testing.T) {
+	fe, err := NewFileEntry(testFolderName)
+	if err != nil {
+		t.Error("Unable to NewFileEntry:", err)
+		return
+	}
+	err = fe.FillContent()
+	if err != nil {
+		t.Error("Error during FillContent:", err)
+		return
+	}
+	flat, err := fe.Flatten(Unknown)
+	if err != nil {
+		t.Error("Error during Flatten Unknown:", err)
+	}
+	allEntries := make([]string, 0, len(allFiles)+len(allFolders))
+	allEntries = append(allEntries, allFiles...)
+	allEntries = append(allEntries, allFolders...)
+	for _, entry := range allEntries {
+		found := false
+		for _, fe := range flat {
+			if fe.Name == entry {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Not able to find %v in Flatten Unknown result", entry)
+		}
+	}
+	flat, err = fe.Flatten(File)
+	if err != nil {
+		t.Error("Error during Flatten File:", err)
+	}
+	for _, entry := range allFiles {
+		found := false
+		for _, fe := range flat {
+			if fe.Name == entry {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Not able to find %v in Flatten File result", entry)
+		}
+	}
+	for _, entry := range allFolders {
+		found := false
+		for _, fe := range flat {
+			if fe.Name == entry {
+				found = true
+				break
+			}
+		}
+		if found {
+			t.Errorf("Able to find %v in Flatten File result even though it's a folder", entry)
+		}
+	}
+	flat, err = fe.Flatten(Directory)
+	if err != nil {
+		t.Error("Error during Flatten Directory:", err)
+	}
+	for _, entry := range allFiles {
+		found := false
+		for _, fe := range flat {
+			if fe.Name == entry {
+				found = true
+				break
+			}
+		}
+		if found {
+			t.Errorf("Able to find %v in Flatten Directory result even though it's a file", entry)
+		}
+	}
+	for _, entry := range allFolders {
+		found := false
+		for _, fe := range flat {
+			if fe.Name == entry {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Not able to find %v in Flatten Directory result", entry)
+		}
+	}
+}
