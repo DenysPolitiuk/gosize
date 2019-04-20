@@ -12,14 +12,16 @@ import (
 )
 
 const (
-	minFolders     int    = 25
-	maxFolders     int    = 50
+	minFolders     int    = 10
+	maxFolders     int    = 20
 	minFiles       int    = 1
 	maxFiles       int    = 20
 	minFileSizeItr int    = 1
-	maxFileSizeItr int    = 1000
+	maxFileSizeItr int    = 100
 	minInnerFolder int    = 1
 	maxInnerFolder int    = 5
+	minFolderDepth int    = 2
+	maxFolderDepth int    = 5
 	fileContent    string = "0123456789"
 	testFolderName string = "test_target"
 )
@@ -37,39 +39,50 @@ func testFolderSetup(dir string) ([]string, error) {
 	}
 	// set up and add one file for fail tests
 	allFiles[0] = filepath.Join(dir, f)
+	innerFiles, err := createDeepFolders(dir, randomNumber(minFolderDepth, maxFolderDepth))
+	if err != nil {
+		os.RemoveAll(dir)
+		return []string{}, err
+	}
+	allFiles = append(allFiles, innerFiles...)
+	return allFiles, nil
+}
+
+func createDeepFolders(startingFolder string, depth int) ([]string, error) {
+	if depth < 1 {
+		return []string{}, nil
+	}
+	returnedFiles := make([]string, 0, 10)
+	depth--
 	for i := 0; i < randomNumber(minFolders, maxFolders); i++ {
 		folderName := strconv.Itoa(int(time.Now().UnixNano()))
-		newFolder := filepath.Join(dir, folderName)
-		err = os.Mkdir(newFolder, os.ModePerm)
+		newFolder := filepath.Join(startingFolder, folderName)
+		err := os.Mkdir(newFolder, os.ModePerm)
 		if err != nil {
-			os.RemoveAll(dir)
 			return []string{}, err
 		}
-		for i := 0; i < randomNumber(minFiles, maxFiles); i++ {
-			aFile, err := testFileSetup(newFolder)
-			if err != nil {
-				os.RemoveAll(dir)
-				return []string{}, err
-			}
-			allFiles = append(allFiles, aFile)
+		files, err := createRandomNumberOfFiles(newFolder)
+		if err != nil {
+			return []string{}, err
 		}
-		for i := 0; i < randomNumber(minInnerFolder, maxInnerFolder); i++ {
-			innerFolderName := strconv.Itoa(int(time.Now().UnixNano()))
-			innerFolder := filepath.Join(newFolder, innerFolderName)
-			err := os.Mkdir(innerFolder, os.ModePerm)
-			if err != nil {
-				os.RemoveAll(dir)
-				return []string{}, err
-			}
-			for i := 0; i < randomNumber(minFiles, maxFiles); i++ {
-				aFile, err := testFileSetup(innerFolder)
-				if err != nil {
-					os.RemoveAll(dir)
-					return []string{}, err
-				}
-				allFiles = append(allFiles, aFile)
-			}
+		returnedFiles = append(returnedFiles, files...)
+		innerFiles, err := createDeepFolders(newFolder, depth)
+		if err != nil {
+			return returnedFiles, err
 		}
+		returnedFiles = append(returnedFiles, innerFiles...)
+	}
+	return returnedFiles, nil
+}
+
+func createRandomNumberOfFiles(folderName string) ([]string, error) {
+	var allFiles []string
+	for i := 0; i < randomNumber(minFiles, maxFiles); i++ {
+		aFile, err := testFileSetup(folderName)
+		if err != nil {
+			return []string{}, err
+		}
+		allFiles = append(allFiles, aFile)
 	}
 	return allFiles, nil
 }
