@@ -172,9 +172,9 @@ func (fe *FileEntry) Flatten(t FileType, depth int) ([]*FileEntry, error) {
 		if c.Type == t || t == Unknown {
 			result = append(result, c)
 		}
-		if c.Type == Directory && (depth > 1 || depth <= -1) {
+		if c.Type == Directory && (depth > 1 || depth <= 0) {
 			var newDepth int
-			if depth <= -1 {
+			if depth <= 0 {
 				newDepth = depth
 			} else {
 				newDepth = depth - 1

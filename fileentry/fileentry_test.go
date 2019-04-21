@@ -289,7 +289,7 @@ func TestFlatten(t *testing.T) {
 		t.Error("Error during FillContent:", err)
 		return
 	}
-	flat, err := fe.Flatten(Unknown, -1)
+	flat, err := fe.Flatten(Unknown, 0)
 	if err != nil {
 		t.Error("Error during Flatten Unknown:", err)
 	}
@@ -308,7 +308,7 @@ func TestFlatten(t *testing.T) {
 			t.Errorf("Not able to find %v in Flatten Unknown result", entry)
 		}
 	}
-	flat, err = fe.Flatten(File, -1)
+	flat, err = fe.Flatten(File, 0)
 	if err != nil {
 		t.Error("Error during Flatten File:", err)
 	}
@@ -336,7 +336,7 @@ func TestFlatten(t *testing.T) {
 			t.Errorf("Able to find %v in Flatten File result even though it's a folder", entry)
 		}
 	}
-	flat, err = fe.Flatten(Directory, -1)
+	flat, err = fe.Flatten(Directory, 0)
 	if err != nil {
 		t.Error("Error during Flatten Directory:", err)
 	}
