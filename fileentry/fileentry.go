@@ -1,10 +1,12 @@
 package fileentry
 
 import (
+	"encoding/gob"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 type ByteSize float64
@@ -49,6 +51,13 @@ type BasicError struct {
 	InternalError error
 	Severity      ErrorSeverity
 }
+
+type SortType string
+
+const (
+	Name SortType = "name"
+	Size SortType = "size"
+)
 
 type ErrorSeverity string
 
@@ -195,4 +204,75 @@ func (fe *FileEntry) Flatten(t FileType, depth int) ([]*FileEntry, error) {
 		}
 	}
 	return result, nil
+}
+
+func (fe *FileEntry) GetSortedContent(sortType SortType) []*FileEntry {
+	result := make([]*FileEntry, 0, len(fe.Content))
+	for _, v := range fe.Content {
+		result = append(result, v)
+	}
+	switch sortType {
+	case Name:
+		sort.Slice(result, func(i, j int) bool {
+			return result[i].Name < result[j].Name
+		})
+	case Size:
+		sort.Slice(result, func(i, j int) bool {
+			// using > instead of < to sort in descending order
+			return result[i].Size > result[j].Size
+		})
+	}
+	return result
+}
+
+// removing valid parent and changing to empty struct
+// to avoid stack overflow issue with gob encoding
+func unParent(fe *FileEntry) {
+	fe.Parent = &FileEntry{}
+	for _, e := range fe.Content {
+		unParent(e)
+	}
+}
+
+// put back parent for FileEntry by going through the structure
+// and passing parent to a child in Content and assigning valid parent
+// back to child
+func fixParent(fe *FileEntry) {
+}
+
+func Save(path string, fe *FileEntry) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return &BasicError{MethodName: "FileEntry.Save", InternalError: err, Severity: Critical}
+	}
+	defer file.Close()
+	encoder := gob.NewEncoder(file)
+	//
+	// better approach ?
+	unParent(fe)
+	//
+	err = encoder.Encode(fe)
+	if err != nil {
+		return &BasicError{MethodName: "FileEntry.Save", InternalError: err, Severity: Critical}
+	}
+	return nil
+}
+
+func Open(path string) (*FileEntry, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return &FileEntry{}, &BasicError{MethodName: "FileEntry Open", InternalError: err, Severity: Critical}
+	}
+	defer file.Close()
+	decoder := gob.NewDecoder(file)
+	fe := new(FileEntry)
+	err = decoder.Decode(fe)
+	//
+	// better approach ?
+	fixParent(fe)
+	//
+	if err != nil {
+		return &FileEntry{}, &BasicError{MethodName: "FileEntry Open", InternalError: err, Severity: Critical}
+	}
+	return fe, nil
 }
