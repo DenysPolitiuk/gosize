@@ -17,6 +17,7 @@ func printHelp() {
 	fmt.Println("Application to help with file/folder size analysis")
 	fmt.Println("Commands :")
 	fmt.Println("\t-t NAME\t--target=NAME\t Target folder to server as root, required")
+	fmt.Println("\t-l NAME\t--load=NAME\tLoad target from a file")
 	fmt.Println("\t-h\t--help\t\t Print help")
 	fmt.Println("\t-s NAME\t--search=NAME\tSearch for one specific file/folder and print it's size")
 	fmt.Println("\t-i\t\t\tInteractive view")
@@ -38,6 +39,7 @@ func main() {
 	var search string
 	inter := false
 	var encodePath string
+	var loadFile string
 	for k, v := range mpArgs {
 		switch k {
 		case "-t", "--target":
@@ -51,9 +53,19 @@ func main() {
 			inter = true
 		case "-e", "--encode":
 			encodePath = v
+		case "-l", "--load":
+			loadFile = v
 		}
 	}
-	fe, err := fileentry.NewFileEntry(rootName)
+	var fe *fileentry.FileEntry
+	if rootName != "" {
+		fe, err = fileentry.NewFileEntry(rootName)
+	} else if loadFile != "" {
+		fe, err = fileentry.Open(loadFile)
+	} else {
+		printHelp()
+		return
+	}
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -63,18 +75,12 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	// if doing interactive only do it and leave the program
 	if inter {
 		err := interactive(fe)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		return
-	}
-	if rootName == "" {
-		fmt.Println("root directory is required")
-		printHelp()
 		return
 	}
 	if encodePath != "" {
@@ -102,6 +108,7 @@ func main() {
 func printInteractiveMsg() {
 	fmt.Println("Use wasd to navigate through folders/files")
 	fmt.Println("Use t to load new folder, o to switch sort method")
+	fmt.Println("\te to save current FileEntry root to a file, l to load FileEntry from a file")
 	fmt.Println("Use q for quit, h to see this message again")
 }
 
@@ -135,6 +142,15 @@ func prettyPrintFileEntry(root *fileentry.FileEntry, sortedContent []*fileentry.
 	return printedAll
 }
 
+func trimUserInput(reader *bufio.Reader) (string, error) {
+	userInput, err := reader.ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	userInput = strings.Trim(userInput, "\n")
+	return userInput, nil
+}
+
 func interactive(fileEntry *fileentry.FileEntry) error {
 	reader := bufio.NewReader(os.Stdin)
 	exit := false
@@ -145,11 +161,11 @@ func interactive(fileEntry *fileentry.FileEntry) error {
 	printInteractiveMsg()
 	for {
 		printedAll := prettyPrintFileEntry(fileEntry, sortedContent, offset, targetIndex)
-		userInput, err := reader.ReadString('\n')
+		userInput, err := trimUserInput(reader)
 		if err != nil {
 			return err
 		}
-		userInput = strings.Trim(userInput, "\n")
+		fmt.Printf("%050s\n", "")
 		switch userInput {
 		case "w":
 			if targetIndex > 0 {
@@ -185,11 +201,10 @@ func interactive(fileEntry *fileentry.FileEntry) error {
 			offset = 0
 		case "t":
 			fmt.Println("Enter new target :")
-			userInput, err := reader.ReadString('\n')
+			userInput, err := trimUserInput(reader)
 			if err != nil {
 				return err
 			}
-			userInput = strings.Trim(userInput, "\n")
 			fmt.Printf("New target is : %s\n", userInput)
 			fileEntry, err = fileentry.NewFileEntry(userInput)
 			if err != nil {
@@ -204,11 +219,10 @@ func interactive(fileEntry *fileentry.FileEntry) error {
 			offset = 0
 		case "o":
 			fmt.Println("Sort by (n)ame or (s)ize ?")
-			userInput, err := reader.ReadString('\n')
+			userInput, err := trimUserInput(reader)
 			if err != nil {
 				return err
 			}
-			userInput = strings.Trim(userInput, "\n")
 			oldSortType := sortType
 			switch userInput {
 			case "n", "name":
@@ -222,6 +236,36 @@ func interactive(fileEntry *fileentry.FileEntry) error {
 				continue
 			}
 			sortedContent = fileEntry.GetSortedContent(sortType)
+		case "e":
+			fmt.Printf("File name is : ")
+			userInput, err := trimUserInput(reader)
+			if err != nil {
+				return err
+			}
+			if userInput == "" {
+				continue
+			}
+			err = fileentry.Save(userInput, fileEntry)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Saved")
+		case "l":
+			fmt.Printf("Load from a file : ")
+			userInput, err := trimUserInput(reader)
+			if err != nil {
+				return err
+			}
+			if userInput == "" {
+				continue
+			}
+			fileEntry, err = fileentry.Open(userInput)
+			if err != nil {
+				return err
+			}
+			sortedContent = fileEntry.GetSortedContent(sortType)
+			offset = 0
+			targetIndex = 0
 		case "h":
 			printInteractiveMsg()
 		case "q":

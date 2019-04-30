@@ -234,10 +234,12 @@ func unParent(fe *FileEntry) {
 	}
 }
 
-// put back parent for FileEntry by going through the structure
-// and passing parent to a child in Content and assigning valid parent
-// back to child
+// fix parent links after loading from gob
 func fixParent(fe *FileEntry) {
+	for _, e := range fe.Content {
+		e.Parent = fe
+		fixParent(e)
+	}
 }
 
 func Save(path string, fe *FileEntry) error {
@@ -247,14 +249,13 @@ func Save(path string, fe *FileEntry) error {
 	}
 	defer file.Close()
 	encoder := gob.NewEncoder(file)
-	//
-	// better approach ?
 	unParent(fe)
-	//
 	err = encoder.Encode(fe)
 	if err != nil {
 		return &BasicError{MethodName: "FileEntry.Save", InternalError: err, Severity: Critical}
 	}
+	// fix parent of a current FileEntry after breaking it for encoding
+	fixParent(fe)
 	return nil
 }
 
@@ -267,10 +268,7 @@ func Open(path string) (*FileEntry, error) {
 	decoder := gob.NewDecoder(file)
 	fe := new(FileEntry)
 	err = decoder.Decode(fe)
-	//
-	// better approach ?
 	fixParent(fe)
-	//
 	if err != nil {
 		return &FileEntry{}, &BasicError{MethodName: "FileEntry Open", InternalError: err, Severity: Critical}
 	}

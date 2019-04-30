@@ -22,6 +22,7 @@ const (
 	maxFolderDepth int    = 3
 	fileContent    string = "0123456789"
 	testFolderName string = "test_target"
+	encodingName   string = "test.gob"
 )
 
 var (
@@ -389,6 +390,117 @@ func TestFlatten(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("File Entry %v is not in list of entry at depth 1", i.Name)
+		}
+	}
+}
+
+func TestGetSortedContent(t *testing.T) {
+	original := &FileEntry{}
+	original.Content = make(map[string]*FileEntry)
+	for i := 0; i < 10; i++ {
+		innerContent := &FileEntry{}
+		innerContent.Name = strconv.Itoa(i)
+		innerContent.Size = ByteSize(i)
+		original.Content[innerContent.Name] = innerContent
+	}
+	sortedName := original.GetSortedContent(Name)
+	sortedSize := original.GetSortedContent(Size)
+	for i, e := range sortedSize {
+		size := ByteSize(9 - i)
+		if e.Size != size {
+			t.Errorf("Should have size of %v but have %v\n", size, e.Size)
+		}
+	}
+	for i, e := range sortedName {
+		name := strconv.Itoa(i)
+		if e.Name != name {
+			t.Errorf("Should have name %v but have %v\n", name, e.Name)
+		}
+	}
+}
+
+func TestOpenSave(t *testing.T) {
+	fe, err := NewFileEntry(testFolderName)
+	if err != nil {
+		t.Errorf("Got error in NewFileEntry %v\n", err)
+		return
+	}
+	err = fe.FillContent()
+	if err != nil {
+		t.Errorf("Got error in FillContent %v\n", err)
+		return
+	}
+	fe2, err := NewFileEntry(testFolderName)
+	if err != nil {
+		t.Errorf("Got error in NewFileEntry %v\n", err)
+		return
+	}
+	err = fe2.FillContent()
+	if err != nil {
+		t.Errorf("Got error in FillContent %v\n", err)
+		return
+	}
+	feFlat, err := fe.Flatten(Unknown, 0)
+	if err != nil {
+		t.Errorf("Got error in Flatten %v\n", err)
+		return
+	}
+	fe2Flat, err := fe2.Flatten(Unknown, 0)
+	if err != nil {
+		t.Errorf("Got error in Flatten %v\n", err)
+		return
+	}
+	for _, e := range feFlat {
+		found := false
+		for _, e2 := range fe2Flat {
+			if e.Name == e2.Name && e.Size == e2.Size && e.FullPath == e.FullPath && e.Parent.Name == e2.Parent.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Not able to find %v in FileEntry duplicate\n", e.Name)
+		}
+	}
+	err = Save(encodingName, fe2)
+	if err != nil {
+		t.Errorf("Error in Save %v\n", err)
+		return
+	}
+	// check to see if fe2 have changes after saving
+	fe2Flat, err = fe2.Flatten(Unknown, 0)
+	if err != nil {
+		t.Errorf("Error in Flatten %v\n", err)
+		return
+	}
+	for _, e := range feFlat {
+		found := false
+		for _, e2 := range fe2Flat {
+			if e.Name == e2.Name && e.Size == e2.Size && e.FullPath == e.FullPath && e.Parent.Name == e2.Parent.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Not able to find %v in FileEntry duplicate after Save\n", e.Name)
+		}
+	}
+	newFe, err := Open(encodingName)
+	newFeFlat, err := newFe.Flatten(Unknown, 0)
+	if err != nil {
+		t.Errorf("Error in Flatten %v\n", err)
+		return
+	}
+	for _, e := range feFlat {
+		found := false
+		for _, e2 := range newFeFlat {
+			if e.Name == e2.Name && e.Size == e2.Size && e.FullPath == e.FullPath && e.Parent.Name == e2.Parent.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Not able to find %v in FileEntry duplicate after Open\n", e.Name)
 		}
 	}
 }
